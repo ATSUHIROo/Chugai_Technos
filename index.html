@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>保守ナレッジ閲覧ツール</title>
 <style>
   :root{
@@ -42,9 +42,19 @@
   .btn-primary:hover{background:#0c5a47; border-color:#0c5a47}
   :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 
-  /* Toolbar */
+  /* Hamburger (mobile only) */
+  .hamburger{display:none; position:relative; width:44px; height:40px; padding:0; border-radius:8px;
+    flex-direction:column; align-items:center; justify-content:center; gap:5px}
+  .hamburger span{display:block; width:20px; height:2px; background:var(--ink); border-radius:2px; transition:transform .2s,opacity .2s}
+  .hamburger.active::after{content:""; position:absolute; top:7px; right:8px; width:7px; height:7px;
+    border-radius:50%; background:var(--accent); border:1.5px solid var(--surface)}
+
+  /* Toolbar / drawer */
   .toolbar{background:var(--surface); border-bottom:1px solid var(--line);
-    padding:12px 22px; display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    padding:12px 22px; display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap}
+  .drawer-head{display:none; width:100%; align-items:center; justify-content:space-between;
+    padding-bottom:6px; margin-bottom:4px; border-bottom:1px solid var(--line)}
+  .drawer-head button{border:none; background:none; font-size:20px; line-height:1; padding:6px 8px; color:var(--muted)}
   .field{display:flex; flex-direction:column; gap:3px}
   .field label{font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
   .toolbar input,.toolbar select{font-family:var(--jp); font-size:16px; padding:8px 9px;
@@ -52,6 +62,9 @@
   .toolbar input[type=search]{min-width:230px}
   .toolbar input:focus,.toolbar select:focus{outline:none; border-color:var(--accent); background:#fff}
   .grow{flex:1}
+  .drawer-apply{display:none}
+  .backdrop{display:none; position:fixed; inset:0; background:rgba(20,28,24,.42); z-index:45}
+  .backdrop.show{display:block}
 
   /* Layout */
   main{flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:1px;
@@ -60,7 +73,8 @@
   .panel-head{padding:10px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center;
     justify-content:space-between; gap:10px; flex:none}
   .panel-head .count{font-family:var(--mono); font-size:12px; color:var(--muted)}
-  .scroll{overflow:auto; min-height:0; flex:1}
+  .scroll{overflow:auto; min-height:0; flex:1; -webkit-overflow-scrolling:touch}
+  .back-btn{display:none; border:none; background:none; color:var(--accent); font-size:14px; padding:4px 6px; font-weight:500}
 
   /* Results table */
   table{width:100%; border-collapse:collapse}
@@ -97,20 +111,66 @@
     color:var(--accent); border-bottom:1px solid var(--line); padding-bottom:4px; margin-bottom:6px}
   .d-block .v{white-space:pre-wrap; font-size:14px; line-height:1.7}
 
-  /* Empty / loading overlay */
-  .overlay{position:fixed; inset:0; background:rgba(238,240,237,.94); display:flex; align-items:center; justify-content:center; z-index:10}
+  /* File-load overlay */
+  .overlay{position:fixed; inset:0; background:rgba(238,240,237,.94); display:flex; align-items:center; justify-content:center; z-index:60}
   .drop{background:var(--surface); border:1px dashed var(--line-strong); border-radius:14px; padding:40px 44px;
-    max-width:440px; text-align:center; transition:border-color .15s, background .15s}
+    max-width:440px; text-align:center; transition:border-color .15s, background .15s; margin:18px}
   .drop.over{border-color:var(--accent); background:var(--accent-soft)}
   .drop h2{font-size:17px; margin:14px 0 8px}
   .drop p{color:var(--muted); font-size:13px; margin:6px 0 18px; line-height:1.7}
   .drop .err{color:var(--crit); font-size:13px; margin-top:12px; min-height:18px}
   .mark-sq{width:34px; height:34px; border-radius:8px; background:var(--accent); display:inline-block}
 
+  /* ===== Tablet (portrait) ===== */
   @media (max-width:860px){
     main{grid-template-columns:1fr; grid-template-rows:1fr 1fr}
-    .toolbar input[type=search]{min-width:140px}
-    .c-defect{max-width:200px}
+    .c-defect{max-width:240px}
+  }
+
+  /* ===== Smartphone ===== */
+  @media (max-width:720px){
+    header{padding:12px 16px}
+    header h1{font-size:17px}
+    .openBtn{display:none}
+    .status{font-size:11px}
+    .hamburger{display:flex}
+
+    /* toolbar becomes a right-side drawer */
+    .toolbar{position:fixed; top:0; right:0; height:100%; height:100dvh; width:min(88vw,360px);
+      transform:translateX(102%); transition:transform .26s ease; z-index:50; flex-direction:column;
+      align-items:stretch; gap:14px; padding:16px 18px calc(18px + env(safe-area-inset-bottom));
+      overflow:auto; box-shadow:-10px 0 30px rgba(20,28,24,.16); border:none}
+    .toolbar.open{transform:translateX(0)}
+    .drawer-head{display:flex}
+    .field{width:100%}
+    .toolbar input[type=search]{min-width:0; width:100%}
+    .toolbar select,.toolbar input[type=date]{width:100%}
+    #clearBtn{width:100%}
+    .drawer-apply{display:block; width:100%; margin-top:auto; padding:13px; font-size:15px}
+
+    /* single-pane results */
+    main{grid-template-columns:1fr; grid-template-rows:1fr}
+    thead{display:none}
+    tbody tr{display:grid; grid-template-columns:1fr auto;
+      grid-template-areas:"date status" "eq eq" "failure failure" "defect defect";
+      gap:3px 10px; padding:14px 16px; align-items:center}
+    tbody tr.sel{box-shadow:inset 4px 0 0 var(--accent)}
+    tbody td{padding:0; border:none}
+    .c-date{grid-area:date}
+    .c-status{grid-area:status; justify-self:end}
+    .c-eq{grid-area:eq; font-size:15px; white-space:normal}
+    .c-eq .sub{display:inline; margin-left:6px}
+    .c-failure{grid-area:failure; font-size:12px; color:var(--accent)}
+    .c-defect{grid-area:defect; max-width:none; font-size:13px; color:var(--muted);
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+
+    /* detail as full-screen slide-over */
+    .detail-panel{position:fixed; inset:0; z-index:40; transform:translateX(102%);
+      transition:transform .26s ease; box-shadow:-10px 0 30px rgba(20,28,24,.16)}
+    .detail-panel.open{transform:translateX(0)}
+    .back-btn{display:inline-block}
+    .detail-panel .panel-head .eyebrow{display:none}
+    .d-grid{grid-template-columns:1fr 1fr}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -124,12 +184,17 @@
   </div>
   <div class="h-right">
     <div class="status"><span class="dot" id="dot"></span><span id="statusText">DB未読込</span></div>
-    <button class="btn-primary" id="openBtn">DBファイルを開く</button>
+    <button class="btn-primary openBtn" id="openBtn">DBファイルを開く</button>
     <input type="file" id="fileInput" accept=".sqlite,.db,.sqlite3" hidden>
+    <button class="hamburger" id="menuBtn" aria-label="検索・絞り込みを開く"><span></span><span></span><span></span></button>
   </div>
 </header>
 
-<div class="toolbar">
+<div class="toolbar" id="toolbar">
+  <div class="drawer-head">
+    <span class="eyebrow">検索・絞り込み</span>
+    <button id="drawerClose" aria-label="閉じる">&times;</button>
+  </div>
   <div class="field grow" style="max-width:380px">
     <label for="kw">キーワード検索</label>
     <input type="search" id="kw" placeholder="不良内容・調査結果・備考・機種をまとめて検索">
@@ -154,6 +219,7 @@
     <label>&nbsp;</label>
     <button id="clearBtn">条件クリア</button>
   </div>
+  <button class="btn-primary drawer-apply" id="drawerApply">結果を見る</button>
 </div>
 
 <main>
@@ -172,13 +238,18 @@
     </div>
   </section>
 
-  <section class="panel">
-    <div class="panel-head"><span class="eyebrow">詳細</span></div>
+  <section class="panel detail-panel" id="detailPanel">
+    <div class="panel-head">
+      <button class="back-btn" id="detailBack">&larr; 一覧へ戻る</button>
+      <span class="eyebrow">詳細</span>
+    </div>
     <div class="scroll"><div class="detail" id="detail">
-      <div class="hint">左の一覧から行を選択すると、調査結果・備考を含む全項目を表示します。</div>
+      <div class="hint">一覧から行を選択すると、調査結果・備考を含む全項目を表示します。</div>
     </div></div>
   </section>
 </main>
+
+<div class="backdrop" id="backdrop"></div>
 
 <div class="overlay" id="overlay">
   <div class="drop" id="drop">
@@ -227,7 +298,7 @@ async function loadBuffer(buf,name){
   try{
     await ensureEngine();
     db=new SQLlib.Database(new Uint8Array(buf));
-    query("SELECT 1 FROM incidents LIMIT 1"); // 妥当性チェック
+    query("SELECT 1 FROM incidents LIMIT 1");
     onLoaded(name);
   }catch(e){
     $('err').textContent='読み込めませんでした: '+(e.message||e)+'  （incidents テーブルを含むSQLiteファイルか確認してください）';
@@ -236,14 +307,12 @@ async function loadBuffer(buf,name){
 }
 async function loadFile(file){ await loadBuffer(await file.arrayBuffer(), file.name); }
 
-// 同じディレクトリの incident_db.sqlite を自動読み込み（GitHub Pages等のhttp配信時）
 async function autoLoad(){
   try{
     const resp=await fetch('incident_db.sqlite',{cache:'no-store'});
     if(!resp.ok) throw new Error('HTTP '+resp.status);
     await loadBuffer(await resp.arrayBuffer(),'incident_db.sqlite');
   }catch(e){
-    // 自動読込に失敗（file://で開いた等）→ 手動選択にフォールバック
     $('overlay').style.display='flex';
     $('autoNote').textContent='同ディレクトリのDBを自動取得できませんでした。ファイルを選択してください。';
   }
@@ -282,6 +351,9 @@ function search(){
   const rows=query(`SELECT ${COLS.join(',')} FROM incidents ${where}
     ORDER BY response_date DESC, item_no DESC`,p);
   render(rows,kw);
+  const active=$('kw').value||$('eq').value||$('ft').value||$('from').value||$('to').value;
+  $('menuBtn').classList.toggle('active',!!active);
+  $('drawerApply').textContent=`結果を見る（${rows.length}件）`;
 }
 
 function render(rows,kw){
@@ -293,9 +365,9 @@ function render(rows,kw){
     return `<tr data-i="${i}">
       <td class="c-date">${esc(r.response_date||'')}</td>
       <td class="c-eq">${hi(r.equipment_type||'—',kw)}${r.model_number?`<div class="sub">${hi(r.model_number,kw)}</div>`:''}</td>
-      <td>${hi(r.failure_type||'—',kw)}</td>
+      <td class="c-failure">${hi(r.failure_type||'—',kw)}</td>
       <td class="c-defect">${hi(r.defect_name||'—',kw)}</td>
-      <td><span class="badge ${sv.cls}">${esc(sv.label)}</span></td>
+      <td class="c-status"><span class="badge ${sv.cls}">${esc(sv.label)}</span></td>
     </tr>`;
   }).join('');
   Array.from(tb.children).forEach(tr=>{
@@ -303,10 +375,11 @@ function render(rows,kw){
       Array.from(tb.children).forEach(x=>x.classList.remove('sel'));
       tr.classList.add('sel');
       setDetail(rows[+tr.dataset.i],kw);
+      if(mq.matches) $('detailPanel').classList.add('open');
     };
   });
-  setDetail(rows[0],kw);
-  tb.firstElementChild.classList.add('sel');
+  if(!mq.matches){ setDetail(rows[0],kw); tb.firstElementChild.classList.add('sel'); }
+  else setDetail(null);
 }
 
 function cell(k,v,kw){ return `<div class="d-cell"><div class="k">${k}</div><div class="v">${v?hi(v,kw):'—'}</div></div>`; }
@@ -314,7 +387,7 @@ function block(k,v,kw){ if(!v) return ''; return `<div class="d-block"><div clas
 
 function setDetail(r,kw){
   const d=$('detail');
-  if(!r){ d.innerHTML='<div class="hint">左の一覧から行を選択すると、調査結果・備考を含む全項目を表示します。</div>'; return; }
+  if(!r){ d.innerHTML='<div class="hint">一覧から行を選択すると、調査結果・備考を含む全項目を表示します。</div>'; return; }
   const sv=severity(r.operation_status);
   d.innerHTML=`
     <div class="d-top">
@@ -337,6 +410,16 @@ function setDetail(r,kw){
 }
 
 // events
+const mq=window.matchMedia('(max-width:720px)');
+const toolbar=$('toolbar');
+function openDrawer(){ toolbar.classList.add('open'); $('backdrop').classList.add('show'); }
+function closeDrawer(){ toolbar.classList.remove('open'); $('backdrop').classList.remove('show'); }
+$('menuBtn').onclick=openDrawer;
+$('drawerClose').onclick=closeDrawer;
+$('drawerApply').onclick=closeDrawer;
+$('backdrop').onclick=closeDrawer;
+$('detailBack').onclick=()=>$('detailPanel').classList.remove('open');
+
 $('openBtn').onclick=$('openBtn2').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); };
 ['kw','eq','ft','from','to'].forEach(id=>{ const el=$(id); el.oninput=search; el.onchange=search; });
@@ -347,9 +430,7 @@ const drop=$('drop');
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
 drop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) loadFile(f); });
 
-// 起動時：同ディレクトリのDBを自動読み込み
 autoLoad();
-
 </script>
 </body>
 </html>
