@@ -11,6 +11,7 @@
 /* ---- グローバル状態 ------------------------------------------------------- */
 let db=null;        // 読み込んだSQLiteデータベース(sql.jsのDatabaseインスタンス)
 let SQLlib=null;    // sql.jsエンジン本体(初回のみ初期化)
+let currentRows=[]; // 現在一覧に表示中の行(チャットからの選択を一覧に同期するのに使用)
 
 /* ---- 小さなヘルパー ------------------------------------------------------- */
 // id からDOM要素を取得する短縮関数
@@ -139,12 +140,12 @@ function search(){
 // PC/タブレットでは表、スマホではCSSでカード表示に切り替わる(styles.css参照)。
 function render(rows,kw){
   $('resultCount').textContent=`${rows.length} 件`;
-  const tb=$('rows');
+  const tb=$('rows'); currentRows=rows; // 一覧の現在の行を保持(チャット選択の同期用)
   if(!rows.length){ tb.innerHTML=`<tr><td colspan="5" style="padding:26px;color:var(--muted)">該当するインシデントはありません。条件を変えてお試しください。</td></tr>`; setDetail(null); return; }
   // 各行のHTMLを生成(td のクラスはスマホ時のカード配置にも使用)
   tb.innerHTML=rows.map((r,i)=>{
     const sv=severity(r.operation_status);
-    return `<tr data-i="${i}">
+    return `<tr data-i="${i}" data-id="${r.id}">
       <td class="c-date">${esc(r.response_date||'')}</td>
       <td class="c-eq">${hi(r.equipment_type||'—',kw)}${r.model_number?`<div class="sub">${hi(r.model_number,kw)}</div>`:''}</td>
       <td class="c-failure">${hi(r.failure_type||'—',kw)}</td>
@@ -164,6 +165,20 @@ function render(rows,kw){
   // PC/タブレットは先頭行を自動選択。スマホは一覧優先で詳細は閉じておく。
   if(!mq.matches){ setDetail(rows[0],kw); tb.firstElementChild.classList.add('sel'); }
   else setDetail(null);
+}
+
+/* ---- 一覧内の指定インシデントを選択・強調・スクロール(チャットからの同期用) ---- */
+// 一覧に該当IDの行があれば選択状態にして表示位置までスクロールし、詳細も表示する。
+// 見つかれば true、無ければ(絞り込みで一覧に出ていない等) false を返す。
+function selectRowById(id){
+  const tr=document.querySelector(`#rows tr[data-id="${id}"]`);
+  if(!tr) return false;
+  Array.from($('rows').children).forEach(x=>x.classList.remove('sel'));
+  tr.classList.add('sel');
+  tr.scrollIntoView({block:'nearest'});
+  const row=currentRows.find(x=>String(x.id)===String(id));
+  if(row) setDetail(row,'');
+  return true;
 }
 
 /* ---- 詳細パネルの描画 ----------------------------------------------------- */

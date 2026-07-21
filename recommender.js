@@ -112,9 +112,18 @@ function chatRenderResults(hits){
   });
   $('chatMessages').appendChild(wrap); chatScroll();
 }
-// 推薦カードを選んだとき: 詳細を表示し、チャットを閉じる
+// 推薦カードを選んだとき: 一覧側でも同じインシデントを選択・強調し、詳細を表示する
 function chatSelect(r){
-  setDetail(r,'');
+  // 現在の一覧(絞り込み結果)に該当インシデントが含まれていない場合は、
+  // 一覧と詳細がずれて誤解を招くため、絞り込みを解除して全件表示にしてから探す。
+  const inList = typeof currentRows!=='undefined' && currentRows.some(x=>String(x.id)===String(r.id));
+  if(!inList){
+    ['kw','eq','ft','from','to'].forEach(id=>$(id).value='');
+    if(typeof search==='function') search(); // 全件を再描画(一覧を最新化)
+  }
+  // 一覧で該当行を選択・強調・スクロールし、詳細も同じ内容にそろえる
+  const ok = (typeof selectRowById==='function') && selectRowById(r.id);
+  if(!ok) setDetail(r,''); // 念のためのフォールバック(通常はここに来ない)
   if(mq.matches){ $('detailPanel').classList.add('open'); }
   chatClose();
 }
