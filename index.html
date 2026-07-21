@@ -1,5 +1,13 @@
 <!DOCTYPE html>
 <html lang="ja">
+<!--
+  index.html ― 保守ナレッジ閲覧ツール(画面の骨組み)
+  読み込むファイル:
+    styles.css   … 見た目
+    sql-wasm.js  … ブラウザ内SQLiteエンジン(app.jsより先に読む)
+    app.js       … 動作(DB読込・検索・表示)
+  同ディレクトリの incident_db.sqlite を自動で読み込みます。
+-->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,19 +16,22 @@
 </head>
 <body>
 
+<!-- ヘッダー: タイトル / DB読込状態 / ファイルを開く・ハンバーガー -->
 <header>
   <div>
-    <div class="eyebrow">保守ナレッジ &middot; Incident DB Ver.2</div>
+    <div class="eyebrow">保守ナレッジ &middot; Incident DB</div>
     <h1>設備故障・対応履歴 閲覧ツール</h1>
   </div>
   <div class="h-right">
     <div class="status"><span class="dot" id="dot"></span><span id="statusText">DB未読込</span></div>
     <button class="btn-primary openBtn" id="openBtn">DBファイルを開く</button>
     <input type="file" id="fileInput" accept=".sqlite,.db,.sqlite3" hidden>
+    <button class="chat-btn" id="chatBtn" aria-label="類似事例に相談"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 4h16v11H8l-4 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>類似事例に相談</span></button>
     <button class="hamburger" id="menuBtn" aria-label="検索・絞り込みを開く"><span></span><span></span><span></span></button>
   </div>
 </header>
 
+<!-- 検索・絞り込みバー(スマホ時は右からのドロワーになる) -->
 <div class="toolbar" id="toolbar">
   <div class="drawer-head">
     <span class="eyebrow">検索・絞り込み</span>
@@ -53,6 +64,7 @@
   <button class="btn-primary drawer-apply" id="drawerApply">結果を見る</button>
 </div>
 
+<!-- 本体: 左に検索結果一覧、右に選択行の詳細(スマホ時は詳細が全画面) -->
 <main>
   <section class="panel">
     <div class="panel-head">
@@ -80,8 +92,35 @@
   </section>
 </main>
 
+<!-- ドロワーを開いた時の背景(タップで閉じる) -->
 <div class="backdrop" id="backdrop"></div>
 
+<!-- 類似事例に相談(チャット)。普段の文章から近い過去事例を提示する -->
+<div class="chat-backdrop" id="chatBackdrop"></div>
+<section class="chat-panel" id="chatPanel" aria-label="類似事例に相談">
+  <div class="chat-head">
+    <div>
+      <div class="chat-title">類似事例に相談</div>
+      <div class="chat-sub">気になる不具合を普段の言葉で入力してください</div>
+    </div>
+    <button class="chat-x" id="chatClose" aria-label="閉じる">&times;</button>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-msg bot">状況を文章で入力すると、語句が近い過去のインシデントをお勧めします。例: 「落雷のあとモニタが見えなくなった」</div>
+  </div>
+  <div class="chat-chips">
+    <button class="chat-chip">落雷のあとモニタが見えない</button>
+    <button class="chat-chip">ポンプが止まった</button>
+    <button class="chat-chip">流量計の数字がおかしい</button>
+    <button class="chat-chip">停電で監視できない</button>
+  </div>
+  <div class="chat-input-row">
+    <textarea id="chatInput" class="chat-input" rows="1" placeholder="例: 圧力の値が急に下がった"></textarea>
+    <button class="chat-send" id="chatSend" aria-label="送信">送信</button>
+  </div>
+</section>
+
+<!-- DB読込オーバーレイ(読込中/自動読込に失敗した時の手動選択) -->
 <div class="overlay" id="overlay">
   <div class="drop" id="drop">
     <span class="mark-sq"></span>
@@ -92,7 +131,9 @@
   </div>
 </div>
 
+<!-- スクリプト: エンジン → 本体 → 相談機能 の順に読み込む -->
 <script src="sql-wasm.js"></script>
 <script src="app.js"></script>
+<script src="recommender.js"></script>
 </body>
 </html>
